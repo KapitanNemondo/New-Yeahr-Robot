@@ -8,6 +8,8 @@
 #define LATCH_PIN     4  // пин подключен к входу ST_CP
 #define CLOCK_PIN     7  // пин подключен к входу SH_CP
 
+#define END_STOP      3  // пин конецевика на руке
+
 
 // #define MOTOR_LEFT_AIN1       A0
 // #define MOTOR_LEFT_AIN2       A1
@@ -56,30 +58,25 @@ enum Direction {
 };
 
 enum DirectHand {
-  up    = 0,
-  dw    = 1
+  up        = 0,
+  dw        = 1,
+  stopHand  = 2
+};
+
+enum StateEnd {
+  go_up    = 0,
+  go_down  = 1,
+//  stopEnd  = 2
 };
 
 Direction direct;
 DirectHand hand_dir;
+StateEnd flag_stop;
 
 com recived;
 
-// class Motor {
-//   private:
-//     /* data */
-//   public:
-//     Motor(/* args */);
-//     ~Motor();
-// };
 
-// Motor::Motor(/* args */) {
-
-// }
-
-// Motor::~Motor() {
-
-// }
+bool read_end_stop;
 
 
 void Motor(Direction direct, byte speed) {
@@ -163,9 +160,33 @@ void Hand(DirectHand direct) {
       analogWrite(MOTOR__PWM, speed); 
       break;
     }
+
+    case DirectHand :: stopHand: {
+      digitalWrite(LATCH_PIN, LOW);  // цифра один
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
+      digitalWrite(LATCH_PIN, HIGH);
+      analogWrite(MOTOR__PWM, 0); 
+    }
   
   default:
     break;
+  }
+}
+
+void GoHand(DirectHand recived_direct) {
+  read_end_stop = !digitalRead(END_STOP);
+
+  if ( read_end_stop ) {
+    Hand(DirectHand :: stopHand);
+  } else {
+    if ( (recived_direct == DirectHand :: up) && (flag_stop == StateEnd :: go_up) ) {
+      Hand(recived_direct);
+    } else if ( (recived_direct == DirectHand :: dw) && (flag_stop == StateEnd :: go_down) ) {
+      Hand(recived_direct);
+    } else {
+      Hand(DirectHand :: stopHand);
+    }
   }
 }
 
@@ -174,7 +195,7 @@ void setup(){
   Serial.begin(9600);
   Serial.println("Start");
 
-
+  pinMode(END_STOP, INPUT_PULLUP);
 
   pinMode(MOTOR__PWM, OUTPUT);
   pinMode(HAND__PWM, OUTPUT);
@@ -205,13 +226,25 @@ void setup(){
   
   recived.speed = 0;
 
+  flag_stop = StateEnd :: go_up;
+
+  while (flag_stop == StateEnd :: go_up) {
+    read_end_stop = !digitalRead(END_STOP);
+    if (read_end_stop) {
+      flag_stop = StateEnd :: go_down;
+      Hand(DirectHand :: stopHand);
+    } else {
+      Hand(DirectHand :: up);
+    }
+  }
+
 }
 
 void loop() {
 
 
   
-  byte pipeNo, gotByte;
+  byte pipeNo;
   while ( radio.available(&pipeNo)) {                                 // слушаем эфир со всех труб
     //radio.read( &gotByte, sizeof(gotByte) );                          // чиатем входящий сигнал
     radio.read( &recived, sizeof(com) );
@@ -269,6 +302,6 @@ void loop() {
   }
 
   Motor(direct, recived.speed);
-  Hand(hand_dir);
+  GoHand(hand_dir);
 
 } 
