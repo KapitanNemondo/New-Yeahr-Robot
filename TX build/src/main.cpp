@@ -1,6 +1,18 @@
  #include <Arduino.h>
 #include "C:\Projects\New Year\Robot Happy New Yeahr\include\Command.h"
 
+#define SPEED           A1
+#define DIRECT_FOBA     A2
+#define DIRECT_LERI     A3
+
+#define KORREKT_DIRECT  20
+#define KORRET_SPEED    5
+
+
+byte direct_foba, last_foba, direct_leri, last_leri, speed, last_speed;
+
+bool flag_send;
+
 #include <SPI.h>
 #include "nRF24L01.h"
 #include "RF24.h"
@@ -32,6 +44,10 @@ void setup() {
   radio.powerUp(); //начать работу
   radio.stopListening();  //не слушаем радиоэфир, мы передатчик 
 
+  pinMode(DIRECT_FOBA, INPUT);
+  pinMode(DIRECT_LERI, INPUT);
+  pinMode(SPEED, INPUT);
+
 }
 
 void loop() {
@@ -39,36 +55,107 @@ void loop() {
 
   com transmition;
 
-  transmition.direction = FORWARD;
-  transmition.speed = 100;
-  transmition.hand = 10;
-  Serial.println("Send-1...");
-  radio.write(&transmition, sizeof(transmition));
-
-  delay(2000);
-
-  transmition.direction = BACKWARD;
-  transmition.speed = 200;
-  transmition.hand = 30;
-  Serial.println("Send-2...");
-  radio.write(&transmition, sizeof(transmition));
+  direct_foba = map(analogRead(DIRECT_FOBA), 0, 1023, 0, 255);
+  direct_leri = map(analogRead(DIRECT_LERI), 0, 1023, 0, 255);
+  speed = map(analogRead(SPEED), 0, 1023, 0, 255);
 
 
-  delay(2000);
-  transmition.direction = RIGHT;
-  transmition.speed = 50;
-  transmition.hand = 10;
-  Serial.println("Send-3...");
-  radio.write(&transmition, sizeof(transmition));
+  if (speed > last_speed + KORRET_SPEED || speed < last_speed - KORRET_SPEED) {
+    last_speed = speed;
+    Serial.print("[Speed] "); Serial.println(speed);
+    transmition.speed = speed;
 
-  delay(2000);
-  transmition.direction = LEFT;
-  transmition.speed = 100;
-  transmition.hand = 10;
-  Serial.println("Send-4...");
-  radio.write(&transmition, sizeof(transmition));
+    flag_send = true;
 
-  delay(5000);
+  }
+
+  if (direct_leri > last_leri + KORREKT_DIRECT || direct_leri < last_leri - KORREKT_DIRECT) {
+    last_leri = direct_leri;
+ 
+    Serial.print("[Direct] "); Serial.println(direct_leri);
+
+    if (direct_leri < 70) {
+      Serial.println("[Direct] Right");
+      transmition.direction = LEFT;
+      // transmition.speed = 100;
+
+    } else if (direct_leri > 160) {
+      Serial.println("[Direct] Left");
+      transmition.direction = RIGHT;
+      // transmition.speed = 100;
+
+    } else {
+      Serial.println("[Direct] Stop");
+      transmition.direction = STOP;
+    }
+
+    flag_send = true;
+    
+
+  }
+
+  if (direct_foba > last_foba + KORREKT_DIRECT || direct_foba < last_foba - KORREKT_DIRECT) {
+    last_foba = direct_foba;
+ 
+    Serial.print("[Direct] "); Serial.println(direct_foba);
+
+    if (direct_foba < 70) {
+      Serial.println("[Direct] Forward");
+      transmition.direction = FORWARD;
+      // transmition.speed = 100;
+
+    } else if (direct_foba > 160) {
+      Serial.println("[Direct] Backward");
+      transmition.direction = BACKWARD;
+      // transmition.speed = 100;
+
+    } else {
+      Serial.println("[Direct] Stop");
+      transmition.direction = STOP;
+    }
+
+    flag_send = true;
+    
+
+  }
+
+  if (flag_send) {
+    radio.write(&transmition, sizeof(transmition));
+    flag_send = false;
+  }
+
+ 
+
+  // transmition.direction = FORWARD;
+  // transmition.speed = 100;
+  // transmition.hand = 10;
+  // Serial.println("Send-1...");
+  // radio.write(&transmition, sizeof(transmition));
+
+  // delay(2000);
+
+  // transmition.direction = BACKWARD;
+  // transmition.speed = 200;
+  // transmition.hand = 30;
+  // Serial.println("Send-2...");
+  // radio.write(&transmition, sizeof(transmition));
+
+
+  // delay(2000);
+  // transmition.direction = RIGHT;
+  // transmition.speed = 50;
+  // transmition.hand = 10;
+  // Serial.println("Send-3...");
+  // radio.write(&transmition, sizeof(transmition));
+
+  // delay(2000);
+  // transmition.direction = LEFT;
+  // transmition.speed = 100;
+  // transmition.hand = 10;
+  // Serial.println("Send-4...");
+  // radio.write(&transmition, sizeof(transmition));
+
+  // delay(5000);
 
 }
 

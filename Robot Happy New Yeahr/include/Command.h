@@ -9,6 +9,7 @@ struct com
 #define BACKWARD        20
 #define RIGHT           30
 #define LEFT            40
+#define STOP            50
 
-#define HAND_UP         20
-#define HAND_DOWN       30
+#define UP_HAND         20
+#define DOWN_HAND       30

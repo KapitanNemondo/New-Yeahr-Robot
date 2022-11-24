@@ -2,6 +2,7 @@
 #include "Command.h"
 
 #define MOTOR__PWM    5  // выходы arduino
+#define HAND__PWM     6
 
 #define DATA_PIN      2  // пин подключен к входу DS
 #define LATCH_PIN     4  // пин подключен к входу ST_CP
@@ -23,11 +24,15 @@
 #define MOTOR_LEFT_BACKWARD    0b10100000
 #define MOTOR_RIGHT_FORWARD    0b00001010
 #define MOTOR_RIGHT_BACKWARD   0b00000101
+#define MOTOR_STOP             0b00000000
 
 #define ROBOT_FORWARD          0b01011010
 #define ROBOT_BACKWARD         0b10100101
 #define ROBOT_LEFT             0b01010101
 #define ROBOT_RIGHT            0b10101010
+
+#define HAND_UP                0b10100000
+#define HAND_DOWN              0b01010000
 
 
 #include <SPI.h>
@@ -46,10 +51,19 @@ enum Direction {
   forward = 0,
   bacward = 1,
   left    = 2,
-  right   = 3
+  right   = 3,
+  stop    = 4
+};
+
+enum DirectHand {
+  up    = 0,
+  dw    = 1
 };
 
 Direction direct;
+DirectHand hand_dir;
+
+com recived;
 
 // class Motor {
 //   private:
@@ -116,26 +130,34 @@ void Motor(Direction direct, byte speed) {
       analogWrite(MOTOR__PWM, speed); 
       break;
     }
+
+    case Direction :: stop: {
+      analogWrite(MOTOR__PWM, 0); 
+      Serial.println("Stop");
+    }
   
   default:
     break;
   }
 }
 
-void MotorRight(Direction direct, byte speed) {
+void Hand(DirectHand direct) {
+  byte speed = 50;
   switch (direct)
   {
-    case Direction :: forward: {
+    case DirectHand :: up: {
       digitalWrite(LATCH_PIN, LOW);  // цифра один
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_RIGHT_FORWARD);
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_UP);
       digitalWrite(LATCH_PIN, HIGH);
 
-      analogWrite(MOTOR__PWM, speed);  
+      analogWrite(HAND__PWM, speed);  
       break;
     }
-    case Direction :: bacward: {
+    case DirectHand :: dw: {
       digitalWrite(LATCH_PIN, LOW);  // цифра один
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_RIGHT_BACKWARD);
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_DOWN);
       digitalWrite(LATCH_PIN, HIGH);
       
       analogWrite(MOTOR__PWM, speed); 
@@ -154,7 +176,8 @@ void setup(){
 
 
 
-  pinMode(MOTOR__PWM, OUTPUT); 
+  pinMode(MOTOR__PWM, OUTPUT);
+  pinMode(HAND__PWM, OUTPUT);
 
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
@@ -180,13 +203,14 @@ void setup(){
   radio.powerUp(); //начать работу
   radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
   
+  recived.speed = 0;
 
 }
 
 void loop() {
 
 
-  com recived;
+  
   byte pipeNo, gotByte;
   while ( radio.available(&pipeNo)) {                                 // слушаем эфир со всех труб
     //radio.read( &gotByte, sizeof(gotByte) );                          // чиатем входящий сигнал
@@ -218,12 +242,33 @@ void loop() {
       break;
     }
 
+    case STOP: {
+      direct = stop;
+      break;
+    }
+
     default:
       break;
+    }
+
+    switch (recived.hand) {
+      case UP_HAND: {
+        hand_dir = up;
+        break;
+      }
+
+      case DOWN_HAND: {
+        hand_dir = dw;
+        break;
+      }
+
+      default:
+        break;
     }
 
   }
 
   Motor(direct, recived.speed);
+  Hand(hand_dir);
 
 } 
