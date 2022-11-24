@@ -8,8 +8,8 @@
 #define KORREKT_DIRECT  20
 #define KORRET_SPEED    5
 
-#define PIN_UP_HAND         2
-#define PIN_DOWN_HAND       3
+#define PIN_UP_HAND         3
+#define PIN_DOWN_HAND       4
 
 byte direct_foba, last_foba, direct_leri, last_leri, speed, last_speed;
 
@@ -70,32 +70,39 @@ void loop() {
 
   if (now_up_state && !flag_up) {  // обработчик нажатия
     flag_up = true;
+    flag_send = true;
   }
   if (!now_up_state && flag_up) {  // обработчик отпускания
-    flag_up = false;  
+    flag_up = false;
+    flag_send = true;
   }
 
-  if () {  // обработчик нажатия
+  if (now_down_state && !flag_down) {  // обработчик нажатия
     flag_down = true;
+    flag_send = true;
   }
   if (!now_down_state && flag_down) {  // обработчик отпускания
-    flag_down = false;  
+    flag_down = false;
+    flag_send = true;
   }
 
   if ( flag_up ) {
 
-    flag_send = true;
+    
     transmition.hand = UP_HAND;
+    // Serial.println("UP");
 
   } else if ( flag_down ) {
 
-    flag_send = true
+    // flag_send = true;
     transmition.hand = DOWN_HAND;
+    // Serial.println("DOWN");
 
   } else if ( !flag_down && !flag_up ) {
 
-    flag_send = true
+    // flag_send = true;
     transmition.hand = STOP_HAND;
+    // Serial.println("STOP");
     
   }
 
@@ -161,6 +168,7 @@ void loop() {
 
   if (flag_send) {
     radio.write(&transmition, sizeof(transmition));
+    Serial.println("Send....");
     flag_send = false;
   }
 

@@ -35,6 +35,7 @@
 
 #define HAND_UP                0b10100000
 #define HAND_DOWN              0b01010000
+#define HAND_STOP              0b00000000
 
 
 #include <SPI.h>
@@ -70,7 +71,7 @@ enum StateEnd {
 };
 
 Direction direct;
-DirectHand hand_dir;
+DirectHand hand_dir, lastdir;;
 StateEnd flag_stop;
 
 com recived;
@@ -85,10 +86,8 @@ void Motor(Direction direct, byte speed) {
     case Direction :: forward: {
 
       Serial.println("Forward");
-      
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
+     
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_FORWARD);
-      digitalWrite(LATCH_PIN, HIGH);
 
       analogWrite(MOTOR__PWM, speed);  
       break;
@@ -97,10 +96,8 @@ void Motor(Direction direct, byte speed) {
 
       Serial.println("Backward");
 
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_BACKWARD);
-      digitalWrite(LATCH_PIN, HIGH);
-      
+     
       analogWrite(MOTOR__PWM, speed); 
       break;
     }
@@ -109,9 +106,7 @@ void Motor(Direction direct, byte speed) {
 
       Serial.println("Right");
       
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_RIGHT);
-      digitalWrite(LATCH_PIN, HIGH);
 
       analogWrite(MOTOR__PWM, speed);  
       break;
@@ -120,9 +115,7 @@ void Motor(Direction direct, byte speed) {
 
       Serial.println("Left");
 
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_LEFT);
-      digitalWrite(LATCH_PIN, HIGH);
       
       analogWrite(MOTOR__PWM, speed); 
       break;
@@ -139,34 +132,29 @@ void Motor(Direction direct, byte speed) {
 }
 
 void Hand(DirectHand direct) {
-  byte speed = 50;
+  byte speed = 100;
   switch (direct)
   {
     case DirectHand :: up: {
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_UP);
-      digitalWrite(LATCH_PIN, HIGH);
 
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_UP);
+      
       analogWrite(HAND__PWM, speed);  
       break;
     }
     case DirectHand :: dw: {
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
+
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_DOWN);
-      digitalWrite(LATCH_PIN, HIGH);
-      
-      analogWrite(MOTOR__PWM, speed); 
+
+      analogWrite(HAND__PWM, speed); 
       break;
     }
 
     case DirectHand :: stopHand: {
-      digitalWrite(LATCH_PIN, LOW);  // цифра один
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
-      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, MOTOR_STOP);
-      digitalWrite(LATCH_PIN, HIGH);
-      analogWrite(MOTOR__PWM, 0); 
+
+      shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_STOP);
+
+      analogWrite(HAND__PWM, 0); 
     }
   
   default:
@@ -177,17 +165,7 @@ void Hand(DirectHand direct) {
 void GoHand(DirectHand recived_direct) {
   read_end_stop = !digitalRead(END_STOP);
 
-  if ( read_end_stop ) {
-    Hand(DirectHand :: stopHand);
-  } else {
-    if ( (recived_direct == DirectHand :: up) && (flag_stop == StateEnd :: go_up) ) {
-      Hand(recived_direct);
-    } else if ( (recived_direct == DirectHand :: dw) && (flag_stop == StateEnd :: go_down) ) {
-      Hand(recived_direct);
-    } else {
-      Hand(DirectHand :: stopHand);
-    }
-  }
+  Hand(recived_direct);
 }
 
 void setup(){
@@ -229,14 +207,30 @@ void setup(){
   flag_stop = StateEnd :: go_up;
 
   while (flag_stop == StateEnd :: go_up) {
+    
     read_end_stop = !digitalRead(END_STOP);
+
+    Serial.print("[Hand set correct] ");  Serial.println(read_end_stop);
+
     if (read_end_stop) {
       flag_stop = StateEnd :: go_down;
+      digitalWrite(LATCH_PIN, LOW);  // цифра один
+
       Hand(DirectHand :: stopHand);
+      Motor(Direction :: stop, 0);
+
+      digitalWrite(LATCH_PIN, HIGH);
     } else {
+      digitalWrite(LATCH_PIN, LOW);  // цифра один
+
       Hand(DirectHand :: up);
+      Motor(Direction :: stop, 0);
+
+      digitalWrite(LATCH_PIN, HIGH);
     }
   }
+
+  recived.hand = DirectHand :: stopHand;
 
 }
 
@@ -246,6 +240,7 @@ void loop() {
   
   byte pipeNo;
   while ( radio.available(&pipeNo)) {                                 // слушаем эфир со всех труб
+
     //radio.read( &gotByte, sizeof(gotByte) );                          // чиатем входящий сигнал
     radio.read( &recived, sizeof(com) );
 
@@ -303,9 +298,15 @@ void loop() {
         break;
     }
 
+
+
   }
 
-  Motor(direct, recived.speed);
+  digitalWrite(LATCH_PIN, LOW);  // цифра один
+
   GoHand(hand_dir);
+  Motor(direct, recived.speed);
+
+  digitalWrite(LATCH_PIN, HIGH);
 
 } 
