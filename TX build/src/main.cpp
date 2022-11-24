@@ -8,10 +8,14 @@
 #define KORREKT_DIRECT  20
 #define KORRET_SPEED    5
 
+#define PIN_UP_HAND         2
+#define PIN_DOWN_HAND       3
 
 byte direct_foba, last_foba, direct_leri, last_leri, speed, last_speed;
 
 bool flag_send;
+bool flag_up, flag_down;
+
 
 #include <SPI.h>
 #include "nRF24L01.h"
@@ -47,6 +51,8 @@ void setup() {
   pinMode(DIRECT_FOBA, INPUT);
   pinMode(DIRECT_LERI, INPUT);
   pinMode(SPEED, INPUT);
+  pinMode(PIN_UP_HAND, INPUT_PULLUP);
+  pinMode(PIN_DOWN_HAND, INPUT_PULLUP);
 
 }
 
@@ -58,6 +64,40 @@ void loop() {
   direct_foba = map(analogRead(DIRECT_FOBA), 0, 1023, 0, 255);
   direct_leri = map(analogRead(DIRECT_LERI), 0, 1023, 0, 255);
   speed = map(analogRead(SPEED), 0, 1023, 0, 255);
+
+  bool now_up_state = !digitalRead(PIN_UP_HAND);
+  bool now_down_state = !digitalRead(PIN_DOWN_HAND);
+
+  if (now_up_state && !flag_up) {  // обработчик нажатия
+    flag_up = true;
+  }
+  if (!now_up_state && flag_up) {  // обработчик отпускания
+    flag_up = false;  
+  }
+
+  if () {  // обработчик нажатия
+    flag_down = true;
+  }
+  if (!now_down_state && flag_down) {  // обработчик отпускания
+    flag_down = false;  
+  }
+
+  if ( flag_up ) {
+
+    flag_send = true;
+    transmition.hand = UP_HAND;
+
+  } else if ( flag_down ) {
+
+    flag_send = true
+    transmition.hand = DOWN_HAND;
+
+  } else if ( !flag_down && !flag_up ) {
+
+    flag_send = true
+    transmition.hand = STOP_HAND;
+    
+  }
 
 
   if (speed > last_speed + KORRET_SPEED || speed < last_speed - KORRET_SPEED) {
@@ -124,38 +164,6 @@ void loop() {
     flag_send = false;
   }
 
- 
-
-  // transmition.direction = FORWARD;
-  // transmition.speed = 100;
-  // transmition.hand = 10;
-  // Serial.println("Send-1...");
-  // radio.write(&transmition, sizeof(transmition));
-
-  // delay(2000);
-
-  // transmition.direction = BACKWARD;
-  // transmition.speed = 200;
-  // transmition.hand = 30;
-  // Serial.println("Send-2...");
-  // radio.write(&transmition, sizeof(transmition));
-
-
-  // delay(2000);
-  // transmition.direction = RIGHT;
-  // transmition.speed = 50;
-  // transmition.hand = 10;
-  // Serial.println("Send-3...");
-  // radio.write(&transmition, sizeof(transmition));
-
-  // delay(2000);
-  // transmition.direction = LEFT;
-  // transmition.speed = 100;
-  // transmition.hand = 10;
-  // Serial.println("Send-4...");
-  // radio.write(&transmition, sizeof(transmition));
-
-  // delay(5000);
 
 }
 

@@ -286,13 +286,17 @@ void loop() {
 
     switch (recived.hand) {
       case UP_HAND: {
-        hand_dir = up;
+        hand_dir = DirectHand :: up;
         break;
       }
 
       case DOWN_HAND: {
-        hand_dir = dw;
+        hand_dir = DirectHand :: dw;
         break;
+      }
+
+      case STOP_HAND: {
+        hand_dir = DirectHand :: stopHand;
       }
 
       default:

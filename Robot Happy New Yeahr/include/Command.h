@@ -13,3 +13,4 @@ struct com
 
 #define UP_HAND         20
 #define DOWN_HAND       30
+#define STOP_HAND       40
