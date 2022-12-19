@@ -3,6 +3,7 @@ struct com
     byte direction;
     byte hand;
     byte speed;
+    byte zachvat;
 };
 
 #define FORWARD         10
@@ -14,3 +15,7 @@ struct com
 #define UP_HAND         20
 #define DOWN_HAND       30
 #define STOP_HAND       40
+
+#define UP_ZACH         20
+#define DOWN_ZACH       30
+#define STOP_ZACH       40
