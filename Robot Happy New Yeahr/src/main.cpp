@@ -8,7 +8,10 @@
 #define LATCH_PIN     4  // пин подключен к входу ST_CP
 #define CLOCK_PIN     7  // пин подключен к входу SH_CP
 
-#define END_STOP      3  // пин конецевика на руке
+#define END_STOP      8  // пин конецевика на руке
+
+#define SPEED         3  // скорость двигателя захвата
+#define DIRECTION     A0 
 
 
 // #define MOTOR_LEFT_AIN1       A0
@@ -47,6 +50,8 @@ RF24 radio(9, 10); // "создать" модуль на пинах 9 и 10 Дл
 
 byte address[][6] = {"1Node", "2Node", "3Node", "4Node", "5Node", "6Node"}; //возможные номера труб
 
+uint32_t timer;
+
 
 // int motorSpeed = 255; //  скорость мотора
 
@@ -71,7 +76,7 @@ enum StateEnd {
 };
 
 Direction direct;
-DirectHand hand_dir, lastdir;;
+DirectHand hand_dir, lastdir, zachvat_dir;
 StateEnd flag_stop;
 
 com recived;
@@ -132,7 +137,7 @@ void Motor(Direction direct, byte speed) {
 }
 
 void Hand(DirectHand direct) {
-  byte speed = 100;
+  byte speed = 50;
   switch (direct)
   {
     case DirectHand :: up: {
@@ -163,9 +168,55 @@ void Hand(DirectHand direct) {
 }
 
 void GoHand(DirectHand recived_direct) {
+  static bool flag;
   read_end_stop = !digitalRead(END_STOP);
 
-  Hand(recived_direct);
+  if (read_end_stop && recived_direct == DirectHand :: dw) {
+    Hand(DirectHand :: up);
+    flag = true;
+    timer = millis();
+  }
+
+  if (read_end_stop && recived_direct == DirectHand :: up) {
+    Hand(DirectHand :: dw);
+    flag = true;
+    timer = millis();
+  }
+
+  if (flag && millis() - timer > 1000) {
+    flag = false;
+    Hand(DirectHand :: stopHand);
+  }
+
+  if (!flag) {
+    Hand(recived_direct);
+  }
+  
+}
+
+void ZachVat(DirectHand direct) {
+  static bool flag;
+
+  if (direct == DirectHand :: dw && flag == false) {
+    digitalWrite(DIRECTION, HIGH);
+    analogWrite(SPEED, 50);
+    flag = true;
+    delay(200);
+    analogWrite(SPEED, 0);
+
+  } else if (direct == DirectHand :: up && flag == false) {
+    digitalWrite(DIRECTION, LOW);
+    analogWrite(SPEED, 50);
+    flag = true;
+    delay(200);
+    analogWrite(SPEED, 0);
+
+  } else if (direct == DirectHand :: stopHand) {
+    digitalWrite(DIRECTION, LOW);
+    analogWrite(SPEED, 0);
+    flag = false;
+    
+  }
 }
 
 void setup(){
@@ -182,7 +233,11 @@ void setup(){
   pinMode(CLOCK_PIN, OUTPUT);
   pinMode(LATCH_PIN, OUTPUT);
 
+  pinMode(SPEED, OUTPUT);
+  pinMode(DIRECTION, OUTPUT);
+
   digitalWrite(LATCH_PIN, HIGH);
+
 
   
   radio.begin(); //активировать модуль
@@ -220,6 +275,7 @@ void setup(){
       Motor(Direction :: stop, 0);
 
       digitalWrite(LATCH_PIN, HIGH);
+      
     } else {
       digitalWrite(LATCH_PIN, LOW);  // цифра один
 
@@ -231,6 +287,7 @@ void setup(){
   }
 
   recived.hand = DirectHand :: stopHand;
+  recived.direction = Direction :: stop;
 
 }
 
@@ -298,8 +355,24 @@ void loop() {
         break;
     }
 
+    switch (recived.zachvat) {
+      case UP_ZACH: {
+        zachvat_dir = DirectHand :: up;
+        break;
+      }
 
+      case DOWN_ZACH: {
+        zachvat_dir = DirectHand :: dw;
+        break;
+      }
 
+      case STOP_ZACH: {
+        zachvat_dir = DirectHand :: stopHand;
+      }
+
+      default:
+        break;
+    }
   }
 
   digitalWrite(LATCH_PIN, LOW);  // цифра один
