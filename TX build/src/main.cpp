@@ -1,20 +1,27 @@
 #include <Arduino.h>
 #include "C:\Projects\New Year\Robot Happy New Yeahr\include\Command.h"
 
-#define SPEED           A1
-#define DIRECT_FOBA     A2
-#define DIRECT_LERI     A3
+#define SPEED               A1
+#define DIRECT_FOBA         A2
+#define DIRECT_LERI         A3
 
-#define KORREKT_DIRECT  20
-#define KORRET_SPEED    5
+#define KORREKT_DIRECT      20
+#define KORRET_SPEED        5
 
 #define PIN_UP_HAND         3
 #define PIN_DOWN_HAND       4
 
+#define PIN_UP_ZACHVAT        7
+#define PIN_DOWN_ZACHVAT      8
+
+
 byte direct_foba, last_foba, direct_leri, last_leri, speed, last_speed;
 
-bool flag_send;
-bool flag_up, flag_down;
+bool flag_send, flag_zachvat = true, flag_start;
+bool flag_up, flag_down, flag_up_zach, flag_dw_zach;
+
+uint32_t timer = 1000;
+uint32_t now_time;
 
 
 #include <SPI.h>
@@ -53,6 +60,8 @@ void setup() {
   pinMode(SPEED, INPUT);
   pinMode(PIN_UP_HAND, INPUT_PULLUP);
   pinMode(PIN_DOWN_HAND, INPUT_PULLUP);
+  pinMode(PIN_UP_ZACHVAT, INPUT_PULLUP);
+  pinMode(PIN_DOWN_ZACHVAT, INPUT_PULLUP);
 
 }
 
@@ -61,12 +70,15 @@ void loop() {
 
   com transmition;
 
+
   direct_foba = map(analogRead(DIRECT_FOBA), 0, 1023, 0, 255);
   direct_leri = map(analogRead(DIRECT_LERI), 0, 1023, 0, 255);
-  speed = map(analogRead(SPEED), 0, 1023, 0, 255);
+  //speed = map(analogRead(SPEED), 0, 1023, 0, 255);
 
   bool now_up_state = !digitalRead(PIN_UP_HAND);
   bool now_down_state = !digitalRead(PIN_DOWN_HAND);
+  bool now_up_zachvat = !digitalRead(PIN_UP_ZACHVAT);
+  bool now_dw_zachvat = !digitalRead(PIN_DOWN_ZACHVAT);
 
   if (now_up_state && !flag_up) {  // обработчик нажатия
     flag_up = true;
@@ -77,13 +89,34 @@ void loop() {
     flag_send = true;
   }
 
+
   if (now_down_state && !flag_down) {  // обработчик нажатия
     flag_down = true;
     flag_send = true;
   }
+
   if (!now_down_state && flag_down) {  // обработчик отпускания
     flag_down = false;
     flag_send = true;
+  }
+
+
+  if (now_up_zachvat && !now_dw_zachvat && flag_zachvat) {
+    flag_send = true;
+    transmition.zachvat = UP_ZACH;
+    flag_zachvat = false;
+    flag_start = true;
+    now_time = millis();
+    Serial.println("[Zachvat] UP");
+  }
+
+  if (!now_up_zachvat && now_dw_zachvat && !flag_zachvat) {
+    flag_send = true;
+    transmition.zachvat = DOWN_ZACH;
+    flag_zachvat = true;
+    flag_start = true;
+    now_time = millis();
+    Serial.println("[Zachvat] DOWN");
   }
 
   if ( flag_up ) {
@@ -106,15 +139,6 @@ void loop() {
     
   }
 
-
-  if (speed > last_speed + KORRET_SPEED || speed < last_speed - KORRET_SPEED) {
-    last_speed = speed;
-    Serial.print("[Speed] "); Serial.println(speed);
-    transmition.speed = speed;
-
-    flag_send = true;
-
-  }
 
   if (direct_leri > last_leri + KORREKT_DIRECT || direct_leri < last_leri - KORREKT_DIRECT) {
     last_leri = direct_leri;
@@ -164,6 +188,13 @@ void loop() {
     flag_send = true;
     
 
+  }
+
+  if (millis() - now_time > timer && flag_start) {
+    transmition.zachvat = STOP_ZACH;
+    flag_send = true;
+    flag_start = false;
+    Serial.println("[Zachvat] STOP");
   }
 
   if (flag_send) {

@@ -85,12 +85,19 @@ com recived;
 bool read_end_stop;
 
 
-void Motor(Direction direct, byte speed) {
+void Motor(Direction direct, byte speed_rs) {
+  byte speed = 100;
   switch (direct)
   {
+    case Direction :: stop: {
+      analogWrite(MOTOR__PWM, 0); 
+      //Serial.println("Stop");
+      break;
+    }
+
     case Direction :: forward: {
 
-      Serial.println("Forward");
+      //Serial.println("Forward");
      
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_FORWARD);
 
@@ -99,7 +106,7 @@ void Motor(Direction direct, byte speed) {
     }
     case Direction :: bacward: {
 
-      Serial.println("Backward");
+      //Serial.println("Backward");
 
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_BACKWARD);
      
@@ -109,7 +116,7 @@ void Motor(Direction direct, byte speed) {
 
     case Direction :: right: {
 
-      Serial.println("Right");
+      //Serial.println("Right");
       
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_RIGHT);
 
@@ -118,7 +125,7 @@ void Motor(Direction direct, byte speed) {
     }
     case Direction :: left: {
 
-      Serial.println("Left");
+      //Serial.println("Left");
 
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, ROBOT_LEFT);
       
@@ -126,10 +133,7 @@ void Motor(Direction direct, byte speed) {
       break;
     }
 
-    case Direction :: stop: {
-      analogWrite(MOTOR__PWM, 0); 
-      Serial.println("Stop");
-    }
+    
   
   default:
     break;
@@ -138,10 +142,12 @@ void Motor(Direction direct, byte speed) {
 
 void Hand(DirectHand direct) {
   byte speed = 50;
+  
   switch (direct)
   {
     case DirectHand :: up: {
 
+      
       shiftOut(DATA_PIN, CLOCK_PIN, LSBFIRST, HAND_UP);
       
       analogWrite(HAND__PWM, speed);  
@@ -199,21 +205,21 @@ void ZachVat(DirectHand direct) {
 
   if (direct == DirectHand :: dw && flag == false) {
     digitalWrite(DIRECTION, HIGH);
-    analogWrite(SPEED, 50);
+    digitalWrite(SPEED, LOW);
     flag = true;
-    delay(200);
-    analogWrite(SPEED, 0);
+    // delay(200);
+    // analogWrite(SPEED, 0);
 
   } else if (direct == DirectHand :: up && flag == false) {
     digitalWrite(DIRECTION, LOW);
-    analogWrite(SPEED, 50);
+    digitalWrite(SPEED, HIGH);
     flag = true;
-    delay(200);
-    analogWrite(SPEED, 0);
+    // delay(200);
+    // analogWrite(SPEED, 0);
 
   } else if (direct == DirectHand :: stopHand) {
+    digitalWrite(SPEED, LOW);
     digitalWrite(DIRECTION, LOW);
-    analogWrite(SPEED, 0);
     flag = false;
     
   }
@@ -247,7 +253,7 @@ void setup(){
   radio.setPayloadSize(32);     //размер пакета, в байтах
 
   radio.openReadingPipe(1, address[0]);     //хотим слушать трубу 0
-  radio.setChannel(0x60);  //выбираем канал (в котором нет шумов!)
+  radio.setChannel(0x60);  // выбираем канал (в котором нет шумов!)
 
   radio.setPALevel (RF24_PA_MAX); //уровень мощности передатчика. На выбор RF24_PA_MIN, RF24_PA_LOW, RF24_PA_HIGH, RF24_PA_MAX
   radio.setDataRate (RF24_250KBPS); //скорость обмена. На выбор RF24_2MBPS, RF24_1MBPS, RF24_250KBPS
@@ -257,7 +263,7 @@ void setup(){
   radio.powerUp(); //начать работу
   radio.startListening();  //начинаем слушать эфир, мы приёмный модуль
   
-  recived.speed = 0;
+  recived.speed = 50;
 
   flag_stop = StateEnd :: go_up;
 
@@ -275,7 +281,7 @@ void setup(){
       Motor(Direction :: stop, 0);
 
       digitalWrite(LATCH_PIN, HIGH);
-      
+
     } else {
       digitalWrite(LATCH_PIN, LOW);  // цифра один
 
@@ -288,6 +294,8 @@ void setup(){
 
   recived.hand = DirectHand :: stopHand;
   recived.direction = Direction :: stop;
+  direct = Direction :: stop;
+  zachvat_dir = DirectHand :: stopHand;
 
 }
 
@@ -304,11 +312,13 @@ void loop() {
     Serial.print("[Direction] "); Serial.println(recived.direction);
     Serial.print("[Hand] "); Serial.println(recived.hand);
     Serial.print("[Speed] "); Serial.println(recived.speed);
+    Serial.print("[Zachvat] "); Serial.println(recived.zachvat); Serial.println();
 
     switch (recived.direction)
     {
     case FORWARD: {
       direct = forward;
+      
       break;
     }
     
@@ -381,5 +391,7 @@ void loop() {
   Motor(direct, recived.speed);
 
   digitalWrite(LATCH_PIN, HIGH);
+
+  ZachVat(zachvat_dir);
 
 } 
